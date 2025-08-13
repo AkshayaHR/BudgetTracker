@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Budget Tracker</title>
+  <style>
+    :root{
+      --bg:#0f172a;      /* slate-900 */
+      --card:#111827;    /* gray-900 */
+      --muted:#94a3b8;   /* slate-400 */
+      --text:#e5e7eb;    /* gray-200 */
+      --accent:#22c55e;  /* green-500 */
+      --accent-2:#ef4444;/* red-500 */
+      --ring:#334155;    /* slate-700 */
+      --chip:#1f2937;    /* gray-800 */
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif;
+      background:linear-gradient(180deg,#0b1024 0%, #0f172a 100%); color:var(--text);
+    }
+    .container{max-width:1100px;margin:32px auto;padding:0 16px}
+    header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:20px}
+    h1{font-size:clamp(20px,4vw,28px);margin:0}
+    .summary{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px
+    }
+    .card{
+      background:var(--card); border:1px solid var(--ring); border-radius:16px; padding:14px 16px;
+      box-shadow:0 8px 24px rgba(0,0,0,.25)
+    }
+    .card h3{margin:0 0 6px 0; font-size:14px; color:var(--muted); font-weight:600}
+    .amount{font-weight:700; font-size:20px}
+    .pos{color:var(--accent)}
+    .neg{color:var(--accent-2)}
+    form{
+      display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end;margin:16px 0 20px
+    }
+    label{font-size:12px;color:var(--muted);display:block;margin:0 0 6px}
+    input, select, button{
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--ring); background:#0b1220; color:var(--text);
+      outline:none;
+    }
+    input:focus, select:focus{box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+    .btn{cursor:pointer; border:none; background:#2563eb; color:#fff; font-weight:600}
+    .btn.secondary{background:#334155}
+    .btn.danger{background:#b91c1c}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .chip{background:var(--chip); border:1px solid var(--ring); padding:8px 10px; border-radius:999px; display:flex; gap:8px; align-items:center}
+    table{
+      width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; border:1px solid var(--ring); background:var(--card)
+    }
+    thead th{font-size:12px; color:var(--muted); text-align:left; padding:10px 12px; border-bottom:1px solid var(--ring)}
+    tbody td{padding:12px; border-bottom:1px solid #1f2937}
+    tbody tr:hover{background:#0b1220}
+    .actions{display:flex; gap:8px}
+    .empty{padding:18px; text-align:center; color:var(--muted)}
+    footer{color:var(--muted); font-size:12px; margin:18px 0 40px}
+    @media (max-width:900px){
+      form{grid-template-columns:repeat(2,1fr)}
+      .summary{grid-template-columns:1fr}
+      header{gap:10px}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💸 Budget Tracker</h1>
+      <div class="toolbar">
+        <button id="exportCsv" class="btn">Export CSV</button>
+        <button id="clearAll" class="btn danger">Clear All</button>
+      </div>
+    </header>
+
+    <section class="summary">
+      <div class="card">
+        <h3>Total Income</h3>
+        <div class="amount pos" id="totalIncome">₹0</div>
+      </div>
+      <div class="card">
+        <h3>Total Expense</h3>
+        <div class="amount neg" id="totalExpense">₹0</div>
+      </div>
+      <div class="card">
+        <h3>Balance</h3>
+        <div class="amount" id="balance">₹0</div>
+      </div>
+    </section>
+
+    <form id="txForm" class="card">
+      <div>
+        <label for="date">Date</label>
+        <input id="date" type="date" required />
+      </div>
+      <div>
+        <label for="type">Type</label>
+        <select id="type" required>
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+      </div>
+      <div>
+        <label for="category">Category</label>
+        <select id="category" required></select>
+      </div>
+      <div>
+        <label for="desc">Description</label>
+        <input id="desc" type="text" placeholder="e.g., Groceries / Salary" required />
+      </div>
+      <div>
+        <label for="amount">Amount (₹)</label>
+        <input id="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+      </div>
+      <div>
+        <button class="btn" type="submit">Add</button>
+      </div>
+    </form>
+
+    <div class="toolbar">
+      <div class="chip">
+        <span>Type</span>
+        <select id="filterType">
+          <option value="all">All</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+      </div>
+      <div class="chip">
+        <span>Category</span>
+        <select id="filterCategory">
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div class="chip">
+        <span>From</span>
+        <input type="date" id="fromDate">
+      </div>
+      <div class="chip">
+        <span>To</span>
+        <input type="date" id="toDate">
+      </div>
+      <div class="chip" style="flex:1 1 240px">
+        <input id="search" type="text" placeholder="Search description…" />
+      </div>
+      <button id="resetFilters" class="btn secondary">Reset Filters</button>
+    </div>
+
+    <section class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:110px">Date</th>
+            <th style="width:110px">Type</th>
+            <th style="width:160px">Category</th>
+            <th>Description</th>
+            <th style="width:140px">Amount</th>
+            <th style="width:130px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="emptyState" class="empty" style="display:none">No transactions yet. Add one above!</div>
+    </section>
+
+    <footer>Data is stored locally in your browser (localStorage). — Tip: use Export CSV to back up.</footer>
+  </div>
+
+  <script>
+    // ------- Storage & State -------
+    const LS_KEY = "budget-tracker:v1";
+    const DEFAULT_CATEGORIES = [
+      { id: "salary", name: "Salary", type: "income" },
+      { id: "freelance", name: "Freelance", type: "income" },
+      { id: "gift", name: "Gift", type: "income" },
+      { id: "food", name: "Food", type: "expense" },
+      { id: "transport", name: "Transport", type: "expense" },
+      { id: "rent", name: "Rent", type: "expense" },
+      { id: "shopping", name: "Shopping", type: "expense" },
+      { id: "bills", name: "Bills & Utilities", type: "expense" },
+    ];
+
+    const state = loadState() || { tx: [], categories: DEFAULT_CATEGORIES };
+
+    // ------- Elements -------
+    const el = (id)=>document.getElementById(id);
+    const tbody = el("tbody");
+    const emptyState = el("emptyState");
+    const totalIncome = el("totalIncome");
+    const totalExpense = el("totalExpense");
+    const balance = el("balance");
+
+    // Form
+    const form = el("txForm");
+    const dateInput = el("date");
+    const typeInput = el("type");
+    const categorySelect = el("category");
+    const descInput = el("desc");
+    const amountInput = el("amount");
+
+    // Filters
+    const filterType = el("filterType");
+    const filterCategory = el("filterCategory");
+    const fromDate = el("fromDate");
+    const toDate = el("toDate");
+    const search = el("search");
+
+    // Toolbar buttons
+    const exportCsvBtn = el("exportCsv");
+    const clearAllBtn = el("clearAll");
+    const resetFiltersBtn = el("resetFilters");
+
+    // Init
+    init();
+
+    function init(){
+      // Default date today
+      dateInput.valueAsDate = new Date();
+      buildCategorySelects();
+      render();
+      // Events
+      form.addEventListener("submit", onAdd);
+      [filterType, filterCategory, fromDate, toDate].forEach(c => c.addEventListener("change", render));
+      search.addEventListener("input", render);
+      resetFiltersBtn.addEventListener("click", (e)=>{e.preventDefault(); resetFilters();});
+      exportCsvBtn.addEventListener("click", exportCSV);
+      clearAllBtn.addEventListener("click", clearAll);
+      typeInput.addEventListener("change", buildCategorySelects);
+    }
+
+    function buildCategorySelects(){
+      const t = typeInput.value;
+      const catsForType = state.categories.filter(c => c.type === t);
+      categorySelect.innerHTML = catsForType.map(c => <option value="${c.id}">${c.name}</option>).join("");
+      // Filter category (all)
+      const allCats = [{id:"all", name:"All", type:"all"}].concat(state.categories);
+      filterCategory.innerHTML = allCats.map(c => <option value="${c.id}">${c.name}</option>).join("");
+    }
+
+    // ------- CRUD -------
+    function onAdd(e){
+      e.preventDefault();
+      const d = dateInput.value;
+      const t = typeInput.value;
+      const c = categorySelect.value;
+      const desc = descInput.value.trim();
+      const amt = parseFloat(amountInput.value);
+
+      if(!d || !t || !c || !desc || isNaN(amt) || amt <= 0){
+        alert("Please fill all fields with valid values."); return;
+      }
+      const tx = {
+        id: crypto.randomUUID(),
+        date: d,
+        type: t,
+        category: c,
+        description: desc,
+        amount: Math.round(amt * 100) / 100
+      };
+      state.tx.unshift(tx);
+      saveState();
+      form.reset();
+      dateInput.valueAsDate = new Date();
+      buildCategorySelects();
+      render();
+    }
+
+    function onDelete(id){
+      if(!confirm("Delete this transaction?")) return;
+      state.tx = state.tx.filter(x => x.id !== id);
+      saveState(); render();
+    }
+
+    function onEdit(id){
+      const tx = state.tx.find(x => x.id === id);
+      if(!tx) return;
+      // Prefill form for quick edit
+      dateInput.value = tx.date;
+      typeInput.value = tx.type;
+      buildCategorySelects();
+      categorySelect.value = tx.category;
+      descInput.value = tx.description;
+      amountInput.value = tx.amount;
+
+      // Remove old and wait for user to submit
+      state.tx = state.tx.filter(x => x.id !== id);
+      saveState(); render();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // ------- Render & Helpers -------
+    function render(){
+      const rows = getFiltered();
+      tbody.innerHTML = rows.map(rowHTML).join("");
+      emptyState.style.display = rows.length ? "none" : "block";
+
+      // Totals
+      const income = sum(state.tx.filter(x => x.type === "income").map(x => x.amount));
+      const expense = sum(state.tx.filter(x => x.type === "expense").map(x => x.amount));
+      const bal = income - expense;
+      totalIncome.textContent = formatINR(income);
+      totalExpense.textContent = formatINR(expense);
+      balance.textContent = formatINR(bal);
+    }
+
+    function rowHTML(x){
+      const catName = (state.categories.find(c => c.id === x.category) || {}).name || x.category;
+      const cls = x.type === "income" ? "pos" : "neg";
+      return `
+        <tr>
+          <td>${x.date}</td>
+          <td>${x.type.charAt(0).toUpperCase()+x.type.slice(1)}</td>
+          <td>${catName}</td>
+          <td>${escapeHTML(x.description)}</td>
+          <td class="${cls}"><strong>${formatINR(x.amount)}</strong></td>
+          <td class="actions">
+            <button class="btn secondary" onclick="onEdit('${x.id}')">Edit</button>
+            <button class="btn danger" onclick="onDelete('${x.id}')">Delete</button>
+          </td>
+        </tr>
+      `;
+    }
+
+    function getFiltered(){
+      const t = filterType.value;
+      const c = filterCategory.value;
+      const q = search.value.trim().toLowerCase();
+      const from = fromDate.value ? new Date(fromDate.value) : null;
+      const to = toDate.value ? new Date(toDate.value) : null;
+
+      return state.tx.filter(x=>{
+        if(t!=="all" && x.type!==t) return false;
+        if(c!=="all" && x.category!==c) return false;
+        if(q && !x.description.toLowerCase().includes(q)) return false;
+
+        const xd = new Date(x.date);
+        if(from && xd < startOfDay(from)) return false;
+        if(to && xd > endOfDay(to)) return false;
+        return true;
+      });
+    }
+
+    function resetFilters(){
+      filterType.value = "all";
+      filterCategory.value = "all";
+      fromDate.value = ""; toDate.value = "";
+      search.value = "";
+      render();
+    }
+
+    // ------- Export / Storage -------
+    function exportCSV(){
+      const rows = [["Date","Type","Category","Description","Amount"]];
+      state.tx.forEach(x=>{
+        const catName = (state.categories.find(c => c.id === x.category) || {}).name || x.category;
+        rows.push([x.date, x.type, catName, x.description.replace(/"/g,'""'), x.amount]);
+      });
+      const csv = rows.map(r => r.map(v => "${String(v)}").join(",")).join("\n");
+      const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "budget-transactions.csv";
+      document.body.appendChild(a); a.click();
+      URL.revokeObjectURL(url); a.remove();
+    }
+
+    function clearAll(){
+      if(!confirm("This will delete ALL transactions. Continue?")) return;
+      state.tx = [];
+      saveState(); render();
+    }
+
+    function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+    function loadState(){
+      try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; }
+    }
+
+    // ------- Utils -------
+    function formatINR(n){
+      return new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(n || 0);
+    }
+    function sum(arr){ return arr.reduce((a,b)=>a+Number(b||0),0); }
+    function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+    function endOfDay(d){ const x=new Date(d); x.setHours(23,59,59,999); return x; }
+    function escapeHTML(str){
+      return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+
+    // Expose for inline onclick
+    window.onDelete = onDelete;
+    window.onEdit = onEdit;
+  </script>
+</body>
+</html>
